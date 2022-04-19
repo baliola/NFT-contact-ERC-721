@@ -10,6 +10,8 @@ import "../extensions/ERC721Pausable.sol";
 import "../../../access/AccessControlEnumerable.sol";
 import "../../../utils/Context.sol";
 import "../../../utils/Counters.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "../extensions/ERC721URIStorage.sol";
 
 /**
  * @dev {ERC721} token, including:
@@ -32,17 +34,20 @@ contract ERC721PresetMinterPauserAutoId is
     Context,
     AccessControlEnumerable,
     ERC721Enumerable,
-    ERC721Burnable,
-    ERC721Pausable
+    //ERC721Burnable,
+    ERC721Pausable,
+    ERC721URIStorage
 {
     using Counters for Counters.Counter;
+    using SafeMath for uint256;
+    uint public constant mintPrice = 0;
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
     Counters.Counter private _tokenIdTracker;
 
-    string private _baseTokenURI;
+    //string private _baseTokenURI;
 
     /**
      * @dev Grants `DEFAULT_ADMIN_ROLE`, `MINTER_ROLE` and `PAUSER_ROLE` to the
@@ -53,10 +58,10 @@ contract ERC721PresetMinterPauserAutoId is
      */
     constructor(
         string memory name,
-        string memory symbol,
-        string memory baseTokenURI
+        string memory symbol//,
+        //string memory baseTokenURI
     ) ERC721(name, symbol) {
-        _baseTokenURI = baseTokenURI;
+        //_baseTokenURI = baseTokenURI;
 
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
@@ -64,13 +69,37 @@ contract ERC721PresetMinterPauserAutoId is
         _setupRole(PAUSER_ROLE, _msgSender());
     }
 
-    function _baseURI() internal view virtual override returns (string memory) {
-        return _baseTokenURI;
+    // function _baseURI() internal view virtual override returns (string memory) {
+    //     return _baseTokenURI;
+    // }
+
+    // function setURI(string memory URI) public virtual {
+    //      require(hasRole(MINTER_ROLE, _msgSender()), "ERC721PresetMinterPauserAutoId: must have minter role to setup URI");
+    //     _baseTokenURI = URI;
+    // }
+
+    function setTokenURI(uint256 tokenId, string memory URI) public virtual{
+        require(hasRole(MINTER_ROLE, _msgSender()), "ERC721PresetMinterPauserAutoId: must have minter role to mint");
+        _setTokenURI(tokenId, URI);
     }
 
-    function setURI(string memory URI) public virtual {
-         require(hasRole(MINTER_ROLE, _msgSender()), "ERC721PresetMinterPauserAutoId: must have minter role to setup URI");
-        _baseTokenURI = URI;
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override(ERC721, ERC721URIStorage)
+        returns (string memory)
+    {
+        return super.tokenURI(tokenId);
+    }
+
+    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
+        super._burn(tokenId);
+    }
+
+    function burn(uint256 tokenId) public virtual {
+        //solhint-disable-next-line max-line-length
+        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721Burnable: caller is not owner nor approved");
+        _burn(tokenId);
     }
 
     /**
@@ -84,13 +113,21 @@ contract ERC721PresetMinterPauserAutoId is
      *
      * - the caller must have the `MINTER_ROLE`.
      */
-    function mint(address to) public virtual {
-        require(hasRole(MINTER_ROLE, _msgSender()), "ERC721PresetMinterPauserAutoId: must have minter role to mint");
+    // function mint(address to) public virtual {
+    //     require(hasRole(MINTER_ROLE, _msgSender()), "ERC721PresetMinterPauserAutoId: must have minter role to mint");
 
-        // We cannot just use balanceOf to create the new tokenId because tokens
-        // can be burned (destroyed), so we need a separate counter.
-        _mint(to, _tokenIdTracker.current());
-        _tokenIdTracker.increment();
+    //     // We cannot just use balanceOf to create the new tokenId because tokens
+    //     // can be burned (destroyed), so we need a separate counter.
+    //     _mint(to, _tokenIdTracker.current());
+    //     _tokenIdTracker.increment();
+    //     _setTokenURI(mintIndex, _uri);
+    // }
+
+    function mint(string memory _uri, address _to) public payable {
+        require(hasRole(MINTER_ROLE, _msgSender()), "ERC721PresetMinterPauserAutoId: must have minter role to mint");
+        uint256 mintIndex = totalSupply();
+        _safeMint(_to, mintIndex);
+        _setTokenURI(mintIndex, _uri);
     }
 
     /**
